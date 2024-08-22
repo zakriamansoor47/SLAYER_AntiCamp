@@ -1,0 +1,4 @@
+{
+    "Chat.Tag": "{darkred}[Anticamp]",
+    "Chat.Camping": "{white}Player: {green}{0} {white}is camping with {darkred}{1} {gold}@{2}"
+} 
