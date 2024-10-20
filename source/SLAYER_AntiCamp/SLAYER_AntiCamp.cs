@@ -29,11 +29,12 @@ public class SLAYER_AntiCampConfig : BasePluginConfig
     [JsonPropertyName("AllowTCampBombPlanted")] public bool AllowTCampBombPlanted { get; set; } = true;
     [JsonPropertyName("AllowCTCampBombMap")] public bool AllowCTCamp { get; set; } = true;
     [JsonPropertyName("AllowCtCampBombDropped")] public bool AllowCtCampBombDropped { get; set; } = true;
+    [JsonPropertyName("DisableChatMessages")] public bool DisableChatMessages { get; set; } = false;
 }
 public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 {
     public override string ModuleName => "SLAYER_AntiCamp";
-    public override string ModuleVersion => "1.0";
+    public override string ModuleVersion => "1.2";
     public override string ModuleAuthor => "SLAYER";
     public override string ModuleDescription => "Detect and Punish Campers";
     public required SLAYER_AntiCampConfig Config {get; set;}
@@ -255,7 +256,11 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         }
         else
         {
-            Server.PrintToChatAll($"{Localizer["Chat.Tag"]} {Localizer["Chat.Camping", player.PlayerName, player.PlayerPawn.Value.WeaponServices?.ActiveWeapon.Value.DesignerName, player.PlayerPawn.Value.LastPlaceName]}");
+            if (!Config.DisableChatMessages) 
+            {
+                Server.PrintToChatAll($"{Localizer["Chat.Tag"]} {Localizer["Chat.Camping", player.PlayerName, player.PlayerPawn.Value.WeaponServices?.ActiveWeapon.Value.DesignerName, player.PlayerPawn.Value.LastPlaceName]}");
+            }
+            
             //Server.PrintToChatAll($" {ChatColors.Darkred}[Anticamp] {ChatColors.White}Player: {ChatColors.Green}{player.PlayerName} {ChatColors.White}is camping with {ChatColors.Darkred}{player.PlayerPawn.Value.WeaponServices?.ActiveWeapon.Value.DesignerName} {ChatColors.Gold}@{player.PlayerPawn.Value.LastPlaceName}");
             
             // reset camp counter

@@ -27,7 +27,8 @@ This Plugin Detect player who is camping for a specific time. Then notify everyo
 	"AllowTCampHostageMap": true,		// Set 'true' to allow camping for Ts on 'cs' maps (Hostage). Set 'false' to disable
 	"AllowTCampBombPlanted": true,	// Set 'true' to allow camping for Ts if the bomb is planted. Set 'false' to disable
 	"AllowCTCampBombMap": true,		// Set 'true' to allow camping for CTs on 'de' maps (Bomb Map). Set 'false' to disable
-	"AllowCtCampBombDropped": true,	// Set 'true' to allow camping for CTs if the bomb dropped. Is only needed if 'AllowCTCampBombMap' is 'false'
-	"ConfigVersion": 1
+	"AllowCtCampBombDropped": true,	// Set 'true' to allow camping for CTs if the bomb dropped. Is only needed if 'AllowCTCampBombMap' is 'false',
+	"DisableChatMessages": false, // Set 'true' to disable the camping messages in chat
+	"ConfigVersion": 2
 }
 ```
