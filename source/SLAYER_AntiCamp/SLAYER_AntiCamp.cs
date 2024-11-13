@@ -33,7 +33,7 @@ public class SLAYER_AntiCampConfig : BasePluginConfig
 public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 {
     public override string ModuleName => "SLAYER_AntiCamp";
-    public override string ModuleVersion => "1.2";
+    public override string ModuleVersion => "1.2.1";
     public override string ModuleAuthor => "SLAYER";
     public override string ModuleDescription => "Detect and Punish Campers";
     public required SLAYER_AntiCampConfig Config {get; set;}
@@ -54,6 +54,18 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>? CampersDelayTimer = new Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>();
     public override void Load(bool hotReload)
     {
+        RegisterListener<Listeners.OnMapStart>((mapname)=>
+        {
+            IsPlayerAFK.Clear();
+            PlayertimerCount.Clear();
+            PlayersLastPos.Clear();
+            PlayerSlapPosition.Clear();
+            PlayerEyeAngleSpawn.Clear();
+            CampersTimer.Clear();
+            CampersPunishTimer.Clear();
+            CampersDelayTimer.Clear();
+            return;
+        });
         RegisterEventHandler<EventRoundStart>((@event, info)=>
         {
             if(!Config.PluginEnabled)return HookResult.Continue;
@@ -317,23 +329,11 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         {
             case 1:
             {
-                if(ClientHealth > Config.MinHealthReserve)
+                if(ClientHealth > Config.MinHealthReserve || Config.MinHealthReserve <= 0)
                 {
-                    if(ClientHealth > Config.MinHealthReserve || Config.MinHealthReserve <= 0)
-                    {
-                        PerformSlap(player, Config.SlapDamage);
-                    }    
-                    else
-                    {
-                        if(!Config.PunishAnyway)
-                        {
-                            ResetTimer(player);
-                        }
-                        player.PlayerPawn.Value.Health = Config.MinHealthReserve;
-                        PerformSlap(player, 0);
-                    }
+                    PerformSlap(player, Config.SlapDamage);
                 }
-                else if(Config.PunishAnyway)
+                else if(Config.PunishAnyway && Config.MinHealthReserve > 0)
                 {
                     PerformSlap(player, 0);
                 }
@@ -406,7 +406,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
             pawn.Health -= damage;
 
             if (pawn.Health <= 0)
-                pawn.CommitSuicide(true, true);
+                pawn.CommitSuicide(false, true);
         }
         // Saving Player Position after Slap
         AddTimer(0.5f, ()=> {PlayerSlapPosition[player] = new Vector(player.PlayerPawn.Value.AbsOrigin.X, player.PlayerPawn.Value.AbsOrigin.Y, player.PlayerPawn.Value.AbsOrigin.Z);});
