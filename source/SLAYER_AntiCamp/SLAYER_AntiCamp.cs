@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Utils;
@@ -33,7 +33,7 @@ public class SLAYER_AntiCampConfig : BasePluginConfig
 public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 {
     public override string ModuleName => "SLAYER_AntiCamp";
-    public override string ModuleVersion => "1.0";
+    public override string ModuleVersion => "1.1";
     public override string ModuleAuthor => "SLAYER";
     public override string ModuleDescription => "Detect and Punish Campers";
     public required SLAYER_AntiCampConfig Config {get; set;}
@@ -374,6 +374,8 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     }
     private void PerformSlap(CCSPlayerController? player, int damage = 0)
     {
+        if(player == null || !player.IsValid || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE)return;
+
         PlayerSlapPosition[player.Slot] = new Vector(0,0,0);
         // Saving Player Position Before Slap
         PlayersLastPos[player.Slot] = new Vector(player.PlayerPawn.Value.AbsOrigin.X, player.PlayerPawn.Value.AbsOrigin.Y, player.PlayerPawn.Value.AbsOrigin.Z);
@@ -491,7 +493,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 
         CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
 
-        if (beam == null)
+        if (beam == null || !beam.IsValid)
         {
             Logger.LogError($"Failed to create beam...");
             return (-1, null);
@@ -512,7 +514,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     }
     public void TeleportLaser(CBeam? laser,Vector start, Vector end)
     {
-        if(laser == null)return;
+        if(laser == null && !laser.IsValid)return;
         // set pos
         laser.Teleport(start, RotationZero, VectorZero);
         // end pos
