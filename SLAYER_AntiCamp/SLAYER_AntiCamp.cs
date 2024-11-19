@@ -33,7 +33,7 @@ public class SLAYER_AntiCampConfig : BasePluginConfig
 public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 {
     public override string ModuleName => "SLAYER_AntiCamp";
-    public override string ModuleVersion => "1.2.1";
+    public override string ModuleVersion => "1.2.2";
     public override string ModuleAuthor => "SLAYER";
     public override string ModuleDescription => "Detect and Punish Campers";
     public required SLAYER_AntiCampConfig Config {get; set;}
