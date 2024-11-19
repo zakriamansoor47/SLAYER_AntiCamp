@@ -29,6 +29,7 @@ public class SLAYER_AntiCampConfig : BasePluginConfig
     [JsonPropertyName("AllowTCampBombPlanted")] public bool AllowTCampBombPlanted { get; set; } = true;
     [JsonPropertyName("AllowCTCampBombMap")] public bool AllowCTCamp { get; set; } = true;
     [JsonPropertyName("AllowCtCampBombDropped")] public bool AllowCtCampBombDropped { get; set; } = true;
+    [JsonPropertyName("DisableChatMessages")] public bool DisableChatMessages { get; set; } = false;
 }
 public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 {
@@ -268,7 +269,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         }
         else
         {
-            if(player.PlayerPawn.Value.WeaponServices != null && player.PlayerPawn.Value!.WeaponServices.ActiveWeapon.Value != null)
+            if(!Config.DisableChatMessages && player.PlayerPawn.Value.WeaponServices != null && player.PlayerPawn.Value!.WeaponServices.ActiveWeapon.Value != null)
             {
                 if(string.IsNullOrEmpty(player.PlayerPawn.Value.LastPlaceName))Server.PrintToChatAll($"{Localizer["Chat.Tag"]} {Localizer["Chat.Camping", player.PlayerName, player.PlayerPawn.Value!.WeaponServices!.ActiveWeapon!.Value!.DesignerName]}");
                 else Server.PrintToChatAll($"{Localizer["Chat.Tag"]} {Localizer["Chat.Camping", player.PlayerName, player.PlayerPawn.Value!.WeaponServices!.ActiveWeapon!.Value!.DesignerName]} {ChatColors.Gold}@{player.PlayerPawn.Value.LastPlaceName}");
