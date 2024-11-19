@@ -269,6 +269,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         }
         else
         {
+            
             if(!Config.DisableChatMessages && player.PlayerPawn.Value.WeaponServices != null && player.PlayerPawn.Value!.WeaponServices.ActiveWeapon.Value != null)
             {
                 if(string.IsNullOrEmpty(player.PlayerPawn.Value.LastPlaceName))Server.PrintToChatAll($"{Localizer["Chat.Tag"]} {Localizer["Chat.Camping", player.PlayerName, player.PlayerPawn.Value!.WeaponServices!.ActiveWeapon!.Value!.DesignerName]}");
