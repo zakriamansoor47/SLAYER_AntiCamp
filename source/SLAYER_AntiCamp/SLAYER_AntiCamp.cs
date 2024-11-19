@@ -519,7 +519,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     }
     public void TeleportLaser(CBeam? laser,Vector start, Vector end)
     {
-        if(laser == null && !laser.IsValid)return;
+        if(laser == null || !laser.IsValid) return;
         // set pos
         laser.Teleport(start, RotationZero, VectorZero);
         // end pos
