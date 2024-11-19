@@ -538,4 +538,3 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         return (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
     }
 }
-
