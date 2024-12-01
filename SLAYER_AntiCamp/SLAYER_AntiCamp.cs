@@ -34,7 +34,7 @@ public class SLAYER_AntiCampConfig : BasePluginConfig
 public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 {
     public override string ModuleName => "SLAYER_AntiCamp";
-    public override string ModuleVersion => "1.2.3";
+    public override string ModuleVersion => "1.2.4";
     public override string ModuleAuthor => "SLAYER";
     public override string ModuleDescription => "Detect and Punish Campers";
     public required SLAYER_AntiCampConfig Config {get; set;}
@@ -141,7 +141,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         {
             foreach (var player in Utilities.GetPlayers().Where(player => player != null && player.IsValid && player.Connected == PlayerConnectedState.PlayerConnected && !player.IsHLTV && player.TeamNum == 3 && player.Pawn.Value.LifeState == (byte)LifeState_t.LIFE_ALIVE))
             {
-                if(CampersTimer.ContainsKey(player) && CampersTimer?[player] != null)
+                if(CampersTimer?.ContainsKey(player) == true && CampersTimer?[player] != null)
                 {
                     ResetTimer(player);
                 }
@@ -159,7 +159,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         {
             foreach (var player in Utilities.GetPlayers().Where(player => player != null && player.IsValid && player.Connected == PlayerConnectedState.PlayerConnected && !player.IsHLTV && player.TeamNum == 3 && player.Pawn.Value.LifeState == (byte)LifeState_t.LIFE_ALIVE))
             {
-                if(!CampersTimer.ContainsKey(player) || (CampersTimer.ContainsKey(player) && CampersTimer[player] == null))
+                if(!CampersTimer?.ContainsKey(player) == true || (CampersTimer?.ContainsKey(player) == true && CampersTimer[player] == null))
                 {
                     PlayersLastPos[player] = new Vector(player.PlayerPawn.Value.AbsOrigin.X, player.PlayerPawn.Value.AbsOrigin.Y, player.PlayerPawn.Value.AbsOrigin.Z);
                     CampersTimer[player] = AddTimer(1.0f, ()=> CheckCamperTimer(player), TimerFlags.REPEAT);
@@ -177,7 +177,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         {
             foreach (var player in Utilities.GetPlayers().Where(player => player != null && player.IsValid && player.Connected == PlayerConnectedState.PlayerConnected && !player.IsHLTV && player.TeamNum == 2 && player.Pawn.Value.LifeState == (byte)LifeState_t.LIFE_ALIVE))
             {
-                if(CampersTimer.ContainsKey(player) && CampersTimer[player] != null)
+                if(CampersTimer?.ContainsKey(player) == true && CampersTimer[player] != null)
                 {
                     ResetTimer(player);
                 }
@@ -238,7 +238,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         if(PlayersLastPos[player].X != 0.0 && IsCamping(player))
         {
             // it looks like this person may be camping, time to get serious
-            if(CampersTimer.ContainsKey(player))CampersTimer[player].Kill();
+            if(CampersTimer?.ContainsKey(player) == true)CampersTimer[player].Kill();
             CampersTimer[player] = AddTimer(1.0f, ()=>CaughtCampingTimer(player), TimerFlags.REPEAT);
         }
         return;
@@ -246,7 +246,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     public void CaughtCampingTimer(CCSPlayerController? player)
     {
         // check to make sure the client is still connected and there are players in both teams
-        if(!TeamsHaveAlivePlayers || player == null || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.PlayerConnected || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE || player.TeamNum < 2 || !PlayertimerCount.ContainsKey(player))
+        if(!TeamsHaveAlivePlayers || player == null || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.PlayerConnected || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE || player.TeamNum < 2 || !PlayertimerCount?.ContainsKey(player) == true)
         {
             ResetTimer(player);
             return;
@@ -296,7 +296,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
             }
 
             // start camp timer
-            if(CampersTimer.ContainsKey(player))CampersTimer[player].Kill();
+            if(CampersTimer?.ContainsKey(player) == true)CampersTimer[player].Kill();
             CampersTimer[player] = AddTimer(1.0f, ()=> CamperTimer(player), TimerFlags.REPEAT);
         }    
         return;
@@ -363,7 +363,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
             ResetTimer(player);
             return;
         }
-        if(CampersPunishTimer.ContainsKey(player))CampersPunishTimer[player].Kill();
+        if(CampersPunishTimer?.ContainsKey(player) == true)CampersPunishTimer[player].Kill();
         CampersPunishTimer[player] = AddTimer(Config.PunishFrequency, ()=> PunishTimer(player), TimerFlags.REPEAT);
         
         return;
@@ -371,9 +371,9 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 
     private void ResetTimer(CCSPlayerController? player)
     {
-        if(CampersTimer.ContainsKey(player) && CampersTimer[player] != null){CampersTimer[player].Kill();CampersTimer.Remove(player);}
-        if(CampersDelayTimer.ContainsKey(player) && CampersDelayTimer[player] != null){CampersDelayTimer[player].Kill();CampersDelayTimer.Remove(player);}
-        if(CampersPunishTimer.ContainsKey(player) && CampersPunishTimer[player] != null) // The reason of adding timer on it because otherwise it crash server
+        if(CampersTimer?.ContainsKey(player) == true && CampersTimer[player] != null){CampersTimer[player].Kill();CampersTimer.Remove(player);}
+        if(CampersDelayTimer?.ContainsKey(player) == true && CampersDelayTimer[player] != null){CampersDelayTimer[player].Kill();CampersDelayTimer.Remove(player);}
+        if(CampersPunishTimer?.ContainsKey(player) == true && CampersPunishTimer[player] != null) // The reason of adding timer on it because otherwise it crash server
         {
             AddTimer(0.2f, ()=>{CampersPunishTimer[player].Kill();CampersPunishTimer.Remove(player);});
             
