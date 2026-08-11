@@ -1,5 +1,8 @@
 # Accepting Paid Request! Discord: Slayer47#7002
-# Donate: If you like my work, you can donate to me via [Steam Trade Offer](https://bit.ly/3qDpgPd)
+# Donate:
+If you like this project, consider supporting me and give the repo a star ⭐ to keep me motivated to continue improving and updating the plugin! You can also support me through donations, which will help me dedicate more time to development and add new features faster. Thank you for your support!:
+
+[![PayPal](https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg)](https://paypal.me/zakriamansoor)
 
 ## Description:
 This Plugin Detect player who is camping for a specific time. Then notify everyone that he is camping at what location. Also, punish the camper with **SLAY** or **SLAP** Punishment. You can also set **Beacon** on the camper. This plugin is ported from [CSGO AntiCamp](https://forums.alliedmods.net/showthread.php?p=895990).  Take cash, Blind players featured are not added in this version.

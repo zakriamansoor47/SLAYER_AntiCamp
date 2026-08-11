@@ -8,11 +8,7 @@ using System.Drawing;
 using Microsoft.Extensions.Logging;
 
 namespace SLAYER_AntiCamp;
-// Used these to remove compile warnings
-#pragma warning disable CS8600
-#pragma warning disable CS8602
-#pragma warning disable CS8604
-#pragma warning disable CS8619
+
 public class SLAYER_AntiCampConfig : BasePluginConfig
 {
     [JsonPropertyName("PluginEnabled")] public bool PluginEnabled { get; set; } = true;
@@ -34,7 +30,7 @@ public class SLAYER_AntiCampConfig : BasePluginConfig
 public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 {
     public override string ModuleName => "SLAYER_AntiCamp";
-    public override string ModuleVersion => "1.2.4";
+    public override string ModuleVersion => "1.2.5";
     public override string ModuleAuthor => "SLAYER";
     public override string ModuleDescription => "Detect and Punish Campers";
     public required SLAYER_AntiCampConfig Config {get; set;}
@@ -50,9 +46,9 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     Dictionary<CCSPlayerController, Vector> PlayersLastPos = new Dictionary<CCSPlayerController, Vector>();
     Dictionary<CCSPlayerController, Vector> PlayerSlapPosition = new Dictionary<CCSPlayerController, Vector>();
     Dictionary<CCSPlayerController, Vector> PlayerEyeAngleSpawn = new Dictionary<CCSPlayerController, Vector>();
-    Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>? CampersTimer = new Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>();
-    Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>? CampersPunishTimer = new Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>();
-    Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>? CampersDelayTimer = new Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>();
+    Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer> CampersTimer = new Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>();
+    Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer> CampersPunishTimer = new Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>();
+    Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer> CampersDelayTimer = new Dictionary<CCSPlayerController, CounterStrikeSharp.API.Modules.Timers.Timer>();
     public override void Load(bool hotReload)
     {
         RegisterListener<Listeners.OnMapStart>((mapname)=>
@@ -65,18 +61,23 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
             CampersTimer.Clear();
             CampersPunishTimer.Clear();
             CampersDelayTimer.Clear();
-            return;
+            IsBombMap = false;
+            IsHostageMap = false;
         });
         RegisterEventHandler<EventRoundStart>((@event, info)=>
         {
             if(!Config.PluginEnabled)return HookResult.Continue;
+            IsBombMap = false;
+            IsHostageMap = false;
             foreach (var entity in Utilities.FindAllEntitiesByDesignerName<CBombTarget>("func_bomb_target"))
             {
                 IsBombMap = true;
+                break;
             }
             foreach (var entity in Utilities.FindAllEntitiesByDesignerName<CHostageRescueZone>("func_hostage_rescue"))
             {
                 IsHostageMap = true;
+                break;
             }
             return HookResult.Continue;
         });
@@ -89,9 +90,11 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         // Check if booth Teams have alive players
         TeamsHaveAlivePlayers = CheckAliveTeams();
 
-        foreach (var player in Utilities.GetPlayers().Where(player => player != null && player.IsValid && player.Connected == PlayerConnectedState.PlayerConnected && !player.IsHLTV && player.TeamNum > 1 && player.Pawn.Value.LifeState == (byte)LifeState_t.LIFE_ALIVE))
+        foreach (var player in Utilities.GetPlayers())
         {
-            if(TeamsHaveAlivePlayers && CampersTimer?.ContainsKey(player) == true && CampersTimer?[player] != null)
+            if (player == null || !player.IsValid || !player.PlayerPawn.IsValid || player.Connected != PlayerConnectedState.Connected || player.IsHLTV || player.TeamNum <= 1 || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE) continue;
+            
+            if(TeamsHaveAlivePlayers && CampersTimer.TryGetValue(player, out var timer) && timer != null)
             {
                 ResetTimer(player);
             }
@@ -102,7 +105,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     public HookResult EventPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
     {
         var player = @event.Userid;
-        if(!Config.PluginEnabled|| player == null || !player.IsValid || player.TeamNum < 2 )return HookResult.Continue;
+        if(!Config.PluginEnabled|| player == null || !player.IsValid || !player.PlayerPawn.IsValid || player.TeamNum < 2 )return HookResult.Continue;
         
         TeamsHaveAlivePlayers = CheckAliveTeams();
         PlayertimerCount[player] = 0;
@@ -118,7 +121,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
             return HookResult.Continue;
 
         // get the players position and start the timing cycle
-        PlayersLastPos[player] = new Vector(player.PlayerPawn.Value.AbsOrigin.X, player.PlayerPawn.Value.AbsOrigin.Y, player.PlayerPawn.Value.AbsOrigin.Z);
+        PlayersLastPos[player] = new Vector(player.PlayerPawn.Value!.AbsOrigin!.X, player.PlayerPawn.Value!.AbsOrigin!.Y, player.PlayerPawn.Value!.AbsOrigin!.Z);
         CampersTimer[player] = AddTimer(1.0f, ()=>CheckCamperTimer(player), TimerFlags.REPEAT);
         
         return HookResult.Continue;
@@ -139,9 +142,11 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         
         if(Config.AllowCtCampBombDropped && !Config.AllowCTCamp)
         {
-            foreach (var player in Utilities.GetPlayers().Where(player => player != null && player.IsValid && player.Connected == PlayerConnectedState.PlayerConnected && !player.IsHLTV && player.TeamNum == 3 && player.Pawn.Value.LifeState == (byte)LifeState_t.LIFE_ALIVE))
+            foreach (var player in Utilities.GetPlayers())
             {
-                if(CampersTimer?.ContainsKey(player) == true && CampersTimer?[player] != null)
+                if (player == null || !player.IsValid || !player.PlayerPawn.IsValid || player.Connected != PlayerConnectedState.Connected || player.IsHLTV || player.TeamNum != 3 || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE) continue;
+                
+                if(CampersTimer.TryGetValue(player, out var timer) && timer != null)
                 {
                     ResetTimer(player);
                 }
@@ -157,11 +162,13 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 
         if(Config.AllowCtCampBombDropped && !Config.AllowCTCamp)
         {
-            foreach (var player in Utilities.GetPlayers().Where(player => player != null && player.IsValid && player.Connected == PlayerConnectedState.PlayerConnected && !player.IsHLTV && player.TeamNum == 3 && player.Pawn.Value.LifeState == (byte)LifeState_t.LIFE_ALIVE))
+            foreach (var player in Utilities.GetPlayers())
             {
-                if(!CampersTimer?.ContainsKey(player) == true || (CampersTimer?.ContainsKey(player) == true && CampersTimer[player] == null))
+                if (player == null || !player.IsValid || !player.PlayerPawn.IsValid || player.Connected != PlayerConnectedState.Connected || player.IsHLTV || player.TeamNum != 3 || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE) continue;
+                
+                if(!CampersTimer.TryGetValue(player, out var timer) || timer == null)
                 {
-                    PlayersLastPos[player] = new Vector(player.PlayerPawn.Value.AbsOrigin.X, player.PlayerPawn.Value.AbsOrigin.Y, player.PlayerPawn.Value.AbsOrigin.Z);
+                    PlayersLastPos[player] = new Vector(player.PlayerPawn.Value!.AbsOrigin!.X, player.PlayerPawn.Value!.AbsOrigin!.Y, player.PlayerPawn.Value!.AbsOrigin!.Z);
                     CampersTimer[player] = AddTimer(1.0f, ()=> CheckCamperTimer(player), TimerFlags.REPEAT);
                 }
             }
@@ -175,9 +182,11 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 
         if(Config.AllowTCampBombPlanted)
         {
-            foreach (var player in Utilities.GetPlayers().Where(player => player != null && player.IsValid && player.Connected == PlayerConnectedState.PlayerConnected && !player.IsHLTV && player.TeamNum == 2 && player.Pawn.Value.LifeState == (byte)LifeState_t.LIFE_ALIVE))
+            foreach (var player in Utilities.GetPlayers())
             {
-                if(CampersTimer?.ContainsKey(player) == true && CampersTimer[player] != null)
+                if (player == null || !player.IsValid || !player.PlayerPawn.IsValid || player.Connected != PlayerConnectedState.Connected || player.IsHLTV || player.TeamNum != 2 || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE) continue;
+                
+                if(CampersTimer.TryGetValue(player, out var timer) && timer != null)
                 {
                     ResetTimer(player);
                 }
@@ -189,56 +198,70 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     
     private bool IsCamping(CCSPlayerController? player)
     {
-        if(player == null || !player.IsValid)return false;
+        if(player == null || !player.IsValid || !player.PlayerPawn.IsValid || player.PlayerPawn.Value == null)return false;
         
-        if(CalculateDistance(PlayersLastPos[player], player.PlayerPawn.Value.AbsOrigin) < Config.CampCheckRadius)
+        if (PlayersLastPos.TryGetValue(player, out var lastPos))
         {
-            if(!IsPlayerAFK[player])
-                if(player.PlayerPawn.Value.Health > Config.MinHealthReserve || Config.PunishAnyway)
-                    {return true;}
+            if(CalculateDistance(lastPos, player.PlayerPawn.Value.AbsOrigin!) < Config.CampCheckRadius)
+            {
+                if(IsPlayerAFK.TryGetValue(player, out var isAfk) && !isAfk)
+                {
+                    if(player.PlayerPawn.Value.Health > Config.MinHealthReserve || Config.PunishAnyway)
+                    {
+                        return true;
+                    }
+                }
+            }
+            else if(IsPlayerAFK.TryGetValue(player, out var afk) && afk)
+            {
+                IsPlayerAFK[player] = false;
+            }
         }
-        else if(IsPlayerAFK[player])
-            IsPlayerAFK[player] = false;
 
-        PlayersLastPos[player] = new Vector(player.PlayerPawn.Value.AbsOrigin.X, player.PlayerPawn.Value.AbsOrigin.Y, player.PlayerPawn.Value.AbsOrigin.Z);
+        PlayersLastPos[player] = new Vector(player.PlayerPawn.Value.AbsOrigin!.X, player.PlayerPawn.Value.AbsOrigin!.Y, player.PlayerPawn.Value.AbsOrigin!.Z);
         return false;
     }
     private bool CheckAliveTeams()
     {
-        int alivect = 0, alivet = 0;
-        foreach (var player in Utilities.GetPlayers().Where(player => player != null && player.IsValid && player.Connected == PlayerConnectedState.PlayerConnected && !player.IsHLTV && player.TeamNum > 1 && player.Pawn.Value.LifeState == (byte)LifeState_t.LIFE_ALIVE))
+        bool aliveCT = false;
+        bool aliveT = false;
+        foreach (var player in Utilities.GetPlayers())
         {
-            if(player.TeamNum == 3)alivect++;
-            else if(player.TeamNum == 2)alivet++;
+            if (player == null || !player.IsValid || !player.PlayerPawn.IsValid || player.Connected != PlayerConnectedState.Connected || player.IsHLTV || player.TeamNum <= 1 || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+                continue;
+                
+            if(player.TeamNum == 3) aliveCT = true;
+            else if(player.TeamNum == 2) aliveT = true;
+
+            if (aliveCT && aliveT) return true;
         }
-        if(alivect > 0 && alivet > 0)return true;
-        else return false;
+        return false;
     }
     public void CheckCamperTimer(CCSPlayerController? player)
     {
         // check to make sure the client is still connected and there are players in both teams
-        if(!TeamsHaveAlivePlayers || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.PlayerConnected || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+        if(!TeamsHaveAlivePlayers || player == null || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.Connected || !player.PlayerPawn.IsValid || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE)
         {
             ResetTimer(player);
             return;
         }
         // store client's eye angle for afk checking
-        if(PlayerEyeAngleSpawn[player].X == 0.0)
+        if(!PlayerEyeAngleSpawn.TryGetValue(player, out var eyeAngleSpawn) || eyeAngleSpawn.X == 0.0)
         {
             IsPlayerAFK[player] = true;
-            PlayerEyeAngleSpawn[player] = new Vector(player.PlayerPawn.Value.EyeAngles.X, player.PlayerPawn.Value.EyeAngles.Y, player.PlayerPawn.Value.EyeAngles.Z) ;
+            PlayerEyeAngleSpawn[player] = new Vector(player.PlayerPawn.Value!.EyeAngles.X, player.PlayerPawn.Value!.EyeAngles.Y, player.PlayerPawn.Value!.EyeAngles.Z);
         }
         else
         {
-            Vector ClientEyeAng  = new Vector(player.PlayerPawn.Value.EyeAngles.X, player.PlayerPawn.Value.EyeAngles.Y, player.PlayerPawn.Value.EyeAngles.Z) ;
-            if(Math.Abs(PlayerEyeAngleSpawn[player].X - ClientEyeAng.X) > 15.0)
+            Vector ClientEyeAng = new Vector(player.PlayerPawn.Value!.EyeAngles.X, player.PlayerPawn.Value!.EyeAngles.Y, player.PlayerPawn.Value!.EyeAngles.Z);
+            if(Math.Abs(eyeAngleSpawn.X - ClientEyeAng.X) > 15.0)
                 IsPlayerAFK[player] = false;
         }
 
-        if(PlayersLastPos[player].X != 0.0 && IsCamping(player))
+        if(PlayersLastPos.TryGetValue(player, out var lastPos) && lastPos.X != 0.0 && IsCamping(player))
         {
             // it looks like this person may be camping, time to get serious
-            if(CampersTimer?.ContainsKey(player) == true)CampersTimer[player].Kill();
+            if(CampersTimer.TryGetValue(player, out var timer) && timer != null) timer.Kill();
             CampersTimer[player] = AddTimer(1.0f, ()=>CaughtCampingTimer(player), TimerFlags.REPEAT);
         }
         return;
@@ -246,7 +269,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     public void CaughtCampingTimer(CCSPlayerController? player)
     {
         // check to make sure the client is still connected and there are players in both teams
-        if(!TeamsHaveAlivePlayers || player == null || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.PlayerConnected || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE || player.TeamNum < 2 || !PlayertimerCount?.ContainsKey(player) == true)
+        if(!TeamsHaveAlivePlayers || player == null || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.Connected || !player.PlayerPawn.IsValid || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE || player.TeamNum < 2 || !PlayertimerCount.ContainsKey(player))
         {
             ResetTimer(player);
             return;
@@ -270,10 +293,10 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         else
         {
             
-            if(!Config.DisableChatMessages && player.PlayerPawn.Value.WeaponServices != null && player.PlayerPawn.Value!.WeaponServices.ActiveWeapon.Value != null)
+            if(!Config.DisableChatMessages && player.PlayerPawn.Value!.WeaponServices != null && player.PlayerPawn.Value!.WeaponServices.ActiveWeapon.Value != null)
             {
-                if(string.IsNullOrEmpty(player.PlayerPawn.Value.LastPlaceName))Server.PrintToChatAll($"{Localizer["Chat.Tag"]} {Localizer["Chat.Camping", player.PlayerName, player.PlayerPawn.Value!.WeaponServices!.ActiveWeapon!.Value!.DesignerName]}");
-                else Server.PrintToChatAll($"{Localizer["Chat.Tag"]} {Localizer["Chat.Camping", player.PlayerName, player.PlayerPawn.Value!.WeaponServices!.ActiveWeapon!.Value!.DesignerName]} {ChatColors.Gold}@{player.PlayerPawn.Value.LastPlaceName}");
+                if(string.IsNullOrEmpty(player.PlayerPawn.Value!.LastPlaceName))Server.PrintToChatAll($"{Localizer["Chat.Tag"]} {Localizer["Chat.Camping", player.PlayerName, player.PlayerPawn.Value!.WeaponServices!.ActiveWeapon!.Value!.DesignerName]}");
+                else Server.PrintToChatAll($"{Localizer["Chat.Tag"]} {Localizer["Chat.Camping", player.PlayerName, player.PlayerPawn.Value!.WeaponServices!.ActiveWeapon!.Value!.DesignerName]} {ChatColors.Gold}@{player.PlayerPawn.Value!.LastPlaceName}");
             }
             
             // reset camp counter
@@ -296,7 +319,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
             }
 
             // start camp timer
-            if(CampersTimer?.ContainsKey(player) == true)CampersTimer[player].Kill();
+            if(CampersTimer.TryGetValue(player, out var timer) && timer != null) timer.Kill();
             CampersTimer[player] = AddTimer(1.0f, ()=> CamperTimer(player), TimerFlags.REPEAT);
         }    
         return;
@@ -304,13 +327,13 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     public void CamperTimer(CCSPlayerController? player)
     {
         // check to make sure the client is still connected and there are players in both teams
-        if(!TeamsHaveAlivePlayers || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.PlayerConnected || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+        if(!TeamsHaveAlivePlayers || player == null || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.Connected || !player.PlayerPawn.IsValid || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE)
         {
             ResetTimer(player);
             return;
         }
         // After one Punish again check if still camping
-        if(PlayerSlapPosition[player].X != 0.0 && CalculateDistance(PlayerSlapPosition[player], player.PlayerPawn.Value.AbsOrigin) > Config.CampCheckRadius && !IsCamping(player))
+        if(PlayerSlapPosition.TryGetValue(player, out var slapPos) && slapPos.X != 0.0 && CalculateDistance(slapPos, player.PlayerPawn.Value!.AbsOrigin!) > Config.CampCheckRadius && !IsCamping(player))
         {
             ResetTimer(player);
             CampersTimer[player] = AddTimer(1.0f, ()=>CheckCamperTimer(player), TimerFlags.REPEAT);
@@ -320,13 +343,13 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     public void PunishTimer(CCSPlayerController? player)
     {
         // check to make sure the client is still connected and there are players in both teams
-        if(!TeamsHaveAlivePlayers || !player.IsValid || player.Connected != PlayerConnectedState.PlayerConnected || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+        if(!TeamsHaveAlivePlayers || player == null || !player.IsValid || player.Connected != PlayerConnectedState.Connected || !player.PlayerPawn.IsValid || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE)
         {
             ResetTimer(player);
             return;
         }
         if(Config.PunishBeacon)DrawBeaconOnPlayer(player);
-        int ClientHealth = player.PlayerPawn.Value.Health;
+        int ClientHealth = player.PlayerPawn.Value!.Health;
         switch(Config.SlapORSlayPunishment)
         {
             case 1:
@@ -347,7 +370,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
                 // slay player
                 if(ClientHealth > Config.MinHealthReserve)
                 {
-                    player.PlayerPawn.Value.CommitSuicide(false, true);
+                    player.PlayerPawn.Value!.CommitSuicide(false, true);
                 }
                 break;
             }
@@ -358,12 +381,12 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     public void PunishDelayTimer(CCSPlayerController? player)
     {
         // check to make sure the client is still connected and there are players in both teams
-        if(!TeamsHaveAlivePlayers || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.PlayerConnected || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+        if(!TeamsHaveAlivePlayers || player == null || !player.IsValid || player.IsHLTV || player.Connected != PlayerConnectedState.Connected || !player.PlayerPawn.IsValid || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE)
         {
             ResetTimer(player);
             return;
         }
-        if(CampersPunishTimer?.ContainsKey(player) == true)CampersPunishTimer[player].Kill();
+        if(CampersPunishTimer.TryGetValue(player, out var timer) && timer != null) timer.Kill();
         CampersPunishTimer[player] = AddTimer(Config.PunishFrequency, ()=> PunishTimer(player), TimerFlags.REPEAT);
         
         return;
@@ -371,21 +394,26 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
 
     private void ResetTimer(CCSPlayerController? player)
     {
-        if(CampersTimer?.ContainsKey(player) == true && CampersTimer[player] != null){CampersTimer[player].Kill();CampersTimer.Remove(player);}
-        if(CampersDelayTimer?.ContainsKey(player) == true && CampersDelayTimer[player] != null){CampersDelayTimer[player].Kill();CampersDelayTimer.Remove(player);}
-        if(CampersPunishTimer?.ContainsKey(player) == true && CampersPunishTimer[player] != null) // The reason of adding timer on it because otherwise it crash server
+        if(player == null || !player.IsValid)return;
+
+        if (CampersTimer.TryGetValue(player, out var timer) && timer != null) { timer.Kill(); CampersTimer.Remove(player); }
+        if (CampersDelayTimer.TryGetValue(player, out var delayTimer) && delayTimer != null) { delayTimer.Kill(); CampersDelayTimer.Remove(player); }
+        if (CampersPunishTimer.TryGetValue(player, out var punishTimer) && punishTimer != null) 
         {
-            AddTimer(0.2f, ()=>{CampersPunishTimer[player].Kill();CampersPunishTimer.Remove(player);});
-            
+            CampersPunishTimer.Remove(player);
+            AddTimer(0.2f, () => 
+            {
+                try { punishTimer.Kill(); } catch { } 
+            });
         }
     }
     private void PerformSlap(CCSPlayerController? player, int damage = 0)
     {
-        if(player == null || !player.IsValid || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE)return;
+        if(player == null || !player.IsValid || !player.PlayerPawn.IsValid || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE)return;
 
         PlayerSlapPosition[player] = new Vector(0,0,0);
         // Saving Player Position Before Slap
-        PlayersLastPos[player] = new Vector(player.PlayerPawn.Value.AbsOrigin.X, player.PlayerPawn.Value.AbsOrigin.Y, player.PlayerPawn.Value.AbsOrigin.Z);
+        PlayersLastPos[player] = new Vector(player.PlayerPawn.Value!.AbsOrigin!.X, player.PlayerPawn.Value!.AbsOrigin!.Y, player.PlayerPawn.Value!.AbsOrigin!.Z);
         var pawn = player.Pawn.Value;
         if (pawn.LifeState != (int)LifeState_t.LIFE_ALIVE)
         {
@@ -406,12 +434,18 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         if (damage > 0)
         {
             pawn.Health -= damage;
+            Utilities.SetStateChanged(pawn, "CBaseEntity", "m_iHealth");
 
             if (pawn.Health <= 0)
                 pawn.CommitSuicide(false, true);
         }
         // Saving Player Position after Slap
-        AddTimer(0.5f, ()=> {PlayerSlapPosition[player] = new Vector(player.PlayerPawn.Value.AbsOrigin.X, player.PlayerPawn.Value.AbsOrigin.Y, player.PlayerPawn.Value.AbsOrigin.Z);});
+        AddTimer(0.5f, ()=> { 
+            if (player.IsValid && player.PlayerPawn.IsValid) 
+            {
+                PlayerSlapPosition[player] = new Vector(player.PlayerPawn.Value!.AbsOrigin!.X, player.PlayerPawn.Value!.AbsOrigin!.Y, player.PlayerPawn.Value!.AbsOrigin!.Z);
+            }
+        });
     }
     private Vector angle_on_circle(float angle, float radius, Vector mid)
     {
@@ -421,9 +455,9 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     }
     public void DrawBeaconOnPlayer(CCSPlayerController? player)
     {
-        if(player == null || !player.IsValid || player.Pawn.Value.LifeState != (byte)LifeState_t.LIFE_ALIVE)return;
+        if(player == null || !player.IsValid || !player.PlayerPawn.IsValid || player.Pawn.Value!.LifeState != (byte)LifeState_t.LIFE_ALIVE)return;
         
-        Vector mid =  new Vector(player?.PlayerPawn.Value.AbsOrigin.X,player?.PlayerPawn.Value.AbsOrigin.Y,player?.PlayerPawn.Value.AbsOrigin.Z);
+        Vector mid =  new Vector(player.PlayerPawn.Value!.AbsOrigin!.X, player.PlayerPawn.Value!.AbsOrigin!.Y, player.PlayerPawn.Value!.AbsOrigin!.Z);
 
         int lines = 20;
         int[] ent = new int[lines];
@@ -451,7 +485,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
                 ent[i] = result.Item1;
                 beam_ent[i] = result.Item2;
             } 
-            if(player.TeamNum == 3)
+            else if(player.TeamNum == 3)
             {
                 var result = DrawLaserBetween(start, end, Color.Blue, 1.0f, 2.0f);
                 ent[i] = result.Item1;
@@ -462,10 +496,12 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
             angle_cur += step;
         }
         
-        AddTimer(0.1f, ()=>
+        CounterStrikeSharp.API.Modules.Timers.Timer? beaconTimer = null;
+        beaconTimer = AddTimer(0.1f, ()=>
         {
             if (BeaconTimerSecond >= 0.9f)
             {
+                beaconTimer?.Kill();
                 return;
             }
             for(int i = 0; i < lines; i++) // Moving Beacon Circle
@@ -496,14 +532,14 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
     public (int, CBeam) DrawLaserBetween(Vector startPos, Vector endPos, Color color, float life, float width)
     {
         if (startPos == null || endPos == null)
-            return (-1, null);
+            return (-1, null!);
 
-        CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
+        CBeam beam = Utilities.CreateEntityByName<CBeam>("beam")!;
 
         if (beam == null || !beam.IsValid)
         {
             Logger.LogError($"Failed to create beam...");
-            return (-1, null);
+            return (-1, null!);
         }
 
         beam.Render = color;
@@ -515,7 +551,7 @@ public class SLAYER_AntiCamp : BasePlugin, IPluginConfig<SLAYER_AntiCampConfig>
         beam.EndPos.Z = endPos.Z;
         beam.DispatchSpawn();
 
-        AddTimer(life, () => { beam.Remove(); }); // destroy beam after specific time
+        if (life != -1) AddTimer(life, () => { if (beam != null && beam.IsValid) beam.Remove(); }); // destroy beam after specific time
 
         return ((int)beam.Index, beam);
     }
