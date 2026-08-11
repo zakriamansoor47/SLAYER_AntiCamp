@@ -1,3 +1,5 @@
+![](https://img.shields.io/github/downloads/zakriamansoor47/SLAYER_AntiCamp/total?style=for-the-badge)
+
 # Accepting Paid Request! Discord: Slayer47#7002
 # Donate:
 If you like this project, consider supporting me and give the repo a star ⭐ to keep me motivated to continue improving and updating the plugin! You can also support me through donations, which will help me dedicate more time to development and add new features faster. Thank you for your support!:
